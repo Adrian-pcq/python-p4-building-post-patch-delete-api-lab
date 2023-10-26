@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from crypt import methods
 from flask import Flask, request, make_response, jsonify
 from flask_migrate import Migrate
 
@@ -30,17 +31,43 @@ def bakeries():
     )
     return response
 
-@app.route('/bakeries/<int:id>')
+@app.route('/bakeries/<int:id>', methods=['GET','PATCH'])
 def bakery_by_id(id):
-
     bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
+    if request.method == 'GET':
+        bakery_serialized = bakery.to_dict()
+        return make_response(bakery_serialized,200)
+    
+    elif request.method == 'PATCH':
+        for attr in request.form:
+            setattr(bakery,attr,request.form.get(attr))
+        db.session.add(bakery)
+        db.session.commit()
 
-    response = make_response(
-        bakery_serialized,
-        200
-    )
-    return response
+        bakery_dict = bakery.to_dict()
+        return make_response(bakery_dict,200)
+
+@app.route('/baked_goods', methods=['GET','POST'])
+def create_baked_good():
+    if request.method == 'POST':
+        new_good = BakedGood(
+            name= request.form.get('name'),
+            price= request.form.get('price'),
+            bakery_id= request.form.get('bakery_id')
+        )
+        db.session.add(new_good)
+        db.session.commit()
+        response = new_good.to_dict()
+        return make_response(response,201)
+    
+@app.route('/baked_goods/<int:id>', methods=['GET','DELETE'])
+def baked_good_by_id(id):
+    if request.method == 'DELETE':
+        good = BakedGood.query.filter_by(id = id).first()
+        db.session.delete(good)
+        db.session.commit()
+        response = {"delete_succesful": True, "message":"Baked_good deleted"}
+        return make_response(response,200)
 
 @app.route('/baked_goods/by_price')
 def baked_goods_by_price():
